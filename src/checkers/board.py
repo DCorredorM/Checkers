@@ -4,7 +4,7 @@ import logging
 from copy import deepcopy
 import matplotlib.pyplot as plt
 
-from gui import Visualizer
+from gui.mpl_visualizer import Visualizer
 from checkers.piece import PieceHelper
 from utils import flatten_list
 
@@ -60,10 +60,15 @@ class StateVector(np.ndarray):
     def toggle_turn(self):
         self.turn ^= PieceHelper._toggle_turn
 
-    def visualize(self) -> None:
+    def visualize(self, show=True, save_path=None) -> None:
         """Visualize the state."""
         Visualizer.visualize_state(self)
-        plt.show()
+        if save_path is not None:
+            plt.savefig(save_path)
+        if show:
+            plt.show()
+        if save_path is not None:
+            plt.clf()
 
     def get_pieces_in_turn(self) -> List[int]:
         """
@@ -73,7 +78,6 @@ class StateVector(np.ndarray):
         -------
             Return all the positions in which the player of color has pieces.
         """
-
         return list(*np.where(PieceHelper.piece_color(self[:-1]) == self.turn))
 
     def from_index_to_coordinate(self, index_: int) -> Tuple[int, int]:
@@ -214,12 +218,7 @@ class StateTransitions:
             if state.coordinate_in_board((i + d[0], j + d[1]))
         ])
 
-        if states:
-            # force taking opponets pieces if possible
-            min_opponents_pieces = min([len(s.get_pieces_in_turn()) for s in states])
-            states = list(filter(lambda s: len(s.get_pieces_in_turn()) == min_opponents_pieces, states))
-
-        return states
+        return StateTransitions._filter_only_take(state, states)
 
     @staticmethod
     def _feasible_state_diagonal(
@@ -259,7 +258,7 @@ class StateTransitions:
             # Take middle piece, i.e., empty square.
             new_state[diag_index] = PieceHelper.empty_square
 
-            promote = new_state.check_promotion(diag_index, piece_value)
+            promote = new_state.check_promotion(diag2_index, piece_value)
 
             if promote:
                 # add piece to target square and promote
@@ -294,7 +293,7 @@ class StateTransitions:
             new_state.toggle_turn()
 
             return [new_state]
-        elif state[diag_index] == PieceHelper.empty_square and from_jump is True:
+        elif from_jump is True: #state[diag_index] == PieceHelper.empty_square and
             # If the piece can't neither jump nor move to the adjacent diagonal square then it cannot do anything.
 
             new_state = deepcopy(state)
@@ -320,9 +319,29 @@ class StateTransitions:
         List[StateVector]:
             List of StateVector with the feasible states that the game can reach in one step.
         """
-
         pieces_to_move = state.get_pieces_in_turn()
         states = flatten_list([StateTransitions.feasible_moves_piece(state, piece) for piece in pieces_to_move])
+        feasible_moves = StateTransitions._filter_only_take(state, states)
+        return feasible_moves
+
+    @staticmethod
+    def _filter_only_take(state, states):
+        piece_imbalance = int(abs(state[:-1].sum()))
+        if states:
+            # force taking opponets pieces if possible
+            imbalance_deltas = [abs(piece_imbalance - int(abs(s[:-1].sum()))) for s in states]
+            max_pieces_imbalance_delta = max(imbalance_deltas)
+            stop = 0
+            p_len = len(states)
+            if min(imbalance_deltas) != max(imbalance_deltas):
+                stop += 1
+
+            states = list(
+                filter(lambda s: abs(piece_imbalance - int(abs(s[:-1].sum()))) >= max_pieces_imbalance_delta, states)
+            )
+            if stop > 0 and p_len == len(states):
+                print('stop')
+
         return states
 
 

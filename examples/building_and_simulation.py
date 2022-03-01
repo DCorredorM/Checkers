@@ -2,6 +2,7 @@ from checkers import StateVector, StateTransitions, CheckersGame, UniformPlayer
 
 import numpy as np
 import matplotlib.pyplot as plt
+import random as rnd
 
 
 def simulate_visual(portion=None):
@@ -14,9 +15,10 @@ def simulate_visual(portion=None):
 
 	print(f'the winner is {winner}')
 	if portion is None:
+		i = 0
 		for s in history:
-			s.visualize()
-
+			s.visualize(save_path=f'data/pictures/frame{i}.png', show=False)
+			i += 1
 	else:
 		for s in history[-portion:]:
 			s.visualize()
@@ -33,4 +35,7 @@ def simulate():
 
 
 if __name__ == '__main__':
-	simulate_visual(2)
+	seed = 756
+	np.random.seed(seed)
+	rnd.seed(seed)
+	simulate_visual()
