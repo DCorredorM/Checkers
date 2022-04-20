@@ -48,7 +48,7 @@ class StateVector(np.ndarray):
     
     def __hash__(self):
         return hash(str(self))
-
+    
     @property
     def turn(self):
         return self[-1]

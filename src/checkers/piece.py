@@ -12,11 +12,11 @@ class PieceHelper:
     piece = 1
     empty_square = 0
     dtype = np.int8
-
+    
     dark = -1
     light = 1
     _toggle_turn = dark ^ light
-
+    
     @staticmethod
     @np.vectorize
     def piece_color(piece: int) -> int:
@@ -36,7 +36,7 @@ class PieceHelper:
             return 0
         else:
             return PieceHelper.dark if piece < PieceHelper.empty_square else PieceHelper.light
-
+    
     @staticmethod
     def get_diagonals(piece_value: int) -> List[Tuple[int, int]]:
         """
@@ -57,7 +57,7 @@ class PieceHelper:
         if abs(piece_value) == PieceHelper.piece:
             color = PieceHelper.piece_color(piece_value)
             return [(1 * color, 1), (1 * color, -1)]
-
+    
     @property
     def toggle_turn(self):
         return self._toggle_turn
