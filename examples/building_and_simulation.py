@@ -5,7 +5,8 @@ from checkers import (
     UniformPlayer,
     EpsilonGreedyPlayer,
     MaterialBalanceApprox,
-    AlphaBetaPlayer
+    AlphaBetaPlayer,
+    EpsilonAlphaBetaPlayer
 )
 import os
 
@@ -17,10 +18,10 @@ import time
 
 def create_game():
     epsilon = 0.1
-    q_approx = MaterialBalanceApprox()
+    v_approx = MaterialBalanceApprox()
     
     game = CheckersGame(
-        light_player=AlphaBetaPlayer(q_approx, depth=2),
+        light_player=AlphaBetaPlayer(v_approx, depth=4),
         dark_player=UniformPlayer()
     )
     return game
@@ -49,8 +50,19 @@ def simulate():
     return history, winner
 
 
+def create_data():
+    game = create_game()
+    game.td_lambda_training(
+        value_function=game.light_player.value_function,
+        number_of_games=10,
+        gamma=0.9,
+        lambda_=0.9,
+        train=False,
+    )
+
+
 if __name__ == '__main__':
     seed = 754
     np.random.seed(seed)
     rnd.seed(seed)
-    simulate()
+    create_data()

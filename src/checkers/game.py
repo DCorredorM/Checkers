@@ -1,5 +1,9 @@
+import os
+from copy import copy
+
 import numpy as np
 
+from checkers.function_approximation import BaseJApproximation
 from checkers.board import StateVector
 from checkers.players import UniformPlayer, CheckersPlayer
 
@@ -19,14 +23,28 @@ class CheckersGame:
     blue_player: CheckersPlayer
         The blue player.
     """
+    
+    DEFAULT_OUTPUT_PATH = os.path.join('data')
+    MAX_NUMBER_OF_MOVES = 100
+    
     def __init__(self, light_player: CheckersPlayer, dark_player: CheckersPlayer):
         self.light_player = light_player
         self.dark_player = dark_player
-
+    
     def simulate_game(
             self,
-            number_of_moves: Optional[int] = np.inf,
+            number_of_moves: Optional[int] = None,
             initial_state: Optional[StateVector] = None
+    ) -> Tuple[List[StateVector], int]:
+        pass
+    
+    def _simulate_game(
+            self,
+            number_of_moves: Optional[int] = None,
+            initial_state: Optional[StateVector] = None,
+            value_function: BaseJApproximation = None,
+            value_function_history: List = None,
+            train: bool = False
     ) -> Tuple[List[StateVector], int]:
         """
         Simulate one game of checkers starting in initial_state and with maximum number of moves of number_of_moves.
@@ -45,33 +63,48 @@ class CheckersGame:
             player won the game. 1 means that the blue player won and zero that the red player won.
             # Todo: Check convention!!
         """
+        if number_of_moves is None:
+            number_of_moves = CheckersGame.MAX_NUMBER_OF_MOVES
+        
         if initial_state is None:
             initial_state = StateVector()
-
+        
         history = []
-        winner = None
-
+        
+        if value_function is not None:
+            # in this case we assume we need to record every state's value function
+            if value_function_history is None:
+                raise AttributeError('If the value function wants to be recorded, the value function history list'
+                                     ' needs to be passed by reference.')
+            
+            def record_history(state):
+                history.append(state)
+                value_function_history.append(value_function(state))
+        else:
+            def record_history(state):
+                history.append(state)
+        
         current_state = initial_state
         turn = 0
         while True:
-            history.append(current_state)
+            record_history(current_state)
             player = self.dark_player if current_state.turn == PieceHelper.dark else self.light_player
             next_state = player.next_move(current_state)
-
+            
             # if the game is over (i.e., current player has no moves)
-            # or the turn exceeds the maximum number of turns allowed the iteration is stoped.
+            # or the turn exceeds the maximum number of turns allowed the iteration is stopped.
             if next_state.is_final() or turn > number_of_moves:
-                history.append(next_state)
-                current_state = next_state
+                record_history(next_state)
+                current_state = copy(next_state)
                 break
             else:
-                current_state = next_state
+                current_state = copy(next_state)
             turn += 1
-
+        
         winner = CheckersGame.decide_winner(current_state)
-
+        
         return history, winner
-
+    
     @staticmethod
     def decide_winner(state):
         """
@@ -89,17 +122,17 @@ class CheckersGame:
             `PieceHelper.light` if the light color wins
             `PieceHelper.empty_square` if the game ends in a tie
         """
-
+        
         min_ = state[:-1].min()
         max_ = state[:-1].max()
-
+        
         if min_ != PieceHelper.empty_square and max_ == PieceHelper.empty_square:
             return PieceHelper.piece_color(min_)
         elif max_ != PieceHelper.empty_square and min_ == PieceHelper.empty_square:
             return PieceHelper.piece_color(max_)
         else:
             return PieceHelper.empty_square
-
+    
     def simulate_games(self, number_of_games: int) -> Tuple[List[List[StateVector]], List[int]]:
         """
         Simulate number_of_games checkers games until someone wins.
@@ -116,10 +149,95 @@ class CheckersGame:
         """
         histories = []
         results = []
-
+        
         for i in range(number_of_games):
             history, result = self.simulate_game()
             histories.append(history)
             results.append(result)
-
+        
         return histories, results
+    
+    def td_lambda_training(
+            self,
+            value_function: BaseJApproximation,
+            number_of_games: int,
+            gamma: float,
+            lambda_: float,
+            train: bool = False,
+            output_path: str = None
+    ):
+        if output_path is None:
+            output_path = CheckersGame.DEFAULT_OUTPUT_PATH
+        
+        output_path = os.path.join(output_path, 'training_data', f'{self.dark_player}vs{self.light_player}')
+        os.makedirs(output_path, exist_ok=True)
+        
+        states = []
+        targets = []
+        
+        for i in range(number_of_games):
+            value_function_history = []
+            history, winner = self._simulate_game(
+                value_function=value_function, value_function_history=value_function_history
+            )
+            
+            h1 = history[::2]
+            v1 = value_function_history[::2]
+            if h1[-1].is_final():
+                v1[-1] = float(winner)
+            h2 = list(map(lambda x: x.flip_colors(), history[1::2]))
+            v2 = value_function_history[1::2]
+            if h2[-1].is_final():
+                v2[-1] = -float(winner)
+            
+            t1 = self._compute_td_lambda_target(v1, gamma, lambda_, winner)
+            t2 = self._compute_td_lambda_target(v2, gamma, lambda_, -winner)
+            
+            states += h1
+            targets += t1
+            states += h2
+            targets += t2
+        
+        specs = {
+            'lambda': lambda_,
+            'gamma': gamma,
+             'Value function Approximation': str(value_function),
+             'Number of games': number_of_games,
+             'Light player': self.light_player,
+             'Dark player': self.dark_player
+        }
+        
+        CheckersGame.write_training_data(states, targets, output_path, specs)
+        
+    @staticmethod
+    def write_training_data(states, targets, output_path, specs):
+        with open(os.path.join(output_path, 'specs.txt'), 'w') as f:
+            for key, value in specs.items():
+                f.write(f'{key}: {value}\n')
+            f.close()
+        
+        targets_ = np.asarray(targets)
+        np.savetxt(os.path.join(output_path, 'targets.csv'), targets_, delimiter=",")
+        
+        states_ = np.concatenate([states])
+        np.savetxt(os.path.join(output_path, 'features.csv'), states_, delimiter=",")
+    
+    @staticmethod
+    def _compute_td_lambda_target(value_function_history,
+                                  gamma,
+                                  lambda_,
+                                  winner):
+        T = len(value_function_history)
+        
+        def G(t, n):
+            if t + n >= T:
+                v = float(winner)
+            else:
+                v = value_function_history[t + n]
+            return (gamma ** n) * v
+        
+        target = [
+            (1 - lambda_) * sum(lambda_ ** n * G(t, n) for n in range(T - t)) + lambda_ ** (T - t) * G(t + 1, T - t - 1)
+            for t in range(T)
+        ]
+        return target

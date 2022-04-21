@@ -60,6 +60,9 @@ class BaseJApproximation(ABC):
     def __init__(self):
         pass
     
+    def __repr__(self):
+        return self.__class__.__name__
+    
     def __call__(
             self, state: Union[List[StateVector], StateVector]
     ):
@@ -67,6 +70,21 @@ class BaseJApproximation(ABC):
             return list(map(lambda x: self._evaluate_function(*x), state))
         else:
             return self._evaluate_function(state)
+    
+    @abstractmethod
+    def save(self):
+        """
+        Saves an already trained model
+        
+        Returns
+        -------
+
+        """
+        ...
+    
+    @classmethod
+    @abstractmethod
+    def load(cls):
     
     @abstractmethod
     def train_step(
@@ -123,9 +141,9 @@ class MaterialBalanceApprox(BaseJApproximation):
         pass
 
     def _evaluate_function(self, state: StateVector) -> float:
-        my_pieces = len(state.get_pieces_in_turn())
+        my_pieces = sum(state[i] for i in state.get_pieces_in_turn()) * state.turn
         state.toggle_turn()
-        opponents_pieces = len(state.get_pieces_in_turn())
+        opponents_pieces = sum(state[i] for i in state.get_pieces_in_turn()) * state.turn
         state.toggle_turn()
     
         return 2 * my_pieces / (my_pieces + opponents_pieces) - 1

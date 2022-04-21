@@ -1,0 +1,6 @@
+lambda: 0.9
+gamma: 0.9
+Value function Approximation: MaterialBalanceApprox
+Number of games: 10
+Light player: AlphaBetaPlayer(1)(4)
+Dark player: UniformPlayer(-1)

@@ -15,7 +15,7 @@ class PieceHelper:
     
     dark = -1
     light = 1
-    _toggle_turn = dark ^ light
+    toggle_turn = dark ^ light
     
     @staticmethod
     @np.vectorize
@@ -57,7 +57,3 @@ class PieceHelper:
         if abs(piece_value) == PieceHelper.piece:
             color = PieceHelper.piece_color(piece_value)
             return [(1 * color, 1), (1 * color, -1)]
-    
-    @property
-    def toggle_turn(self):
-        return self._toggle_turn

@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List, Tuple, Union
 import logging
-from copy import deepcopy
+from copy import deepcopy, copy
 import matplotlib.pyplot as plt
 
 from gui.mpl_visualizer import Visualizer
@@ -58,7 +58,7 @@ class StateVector(np.ndarray):
         self[-1] = value
 
     def toggle_turn(self):
-        self.turn ^= PieceHelper._toggle_turn
+        self.turn ^= PieceHelper.toggle_turn
 
     def visualize(self, show=True, save_path=None) -> None:
         """Visualize the state."""
@@ -167,13 +167,13 @@ class StateVector(np.ndarray):
                 return True if i == 0 else False
     
     def is_final(self):
-        s_list = sorted(list(self[:-1]))
-        if s_list[0] == 0 or s_list[-1] == 0:
-            # In this case all pieces are of the same color
-            return True
-        else:
-            return False
+        return len(StateTransitions.feasible_next_moves(self)) == 0
         
+    def flip_colors(self):
+        flipped = copy(self) * -1
+        flipped[:-1] = np.flip(flipped[:-1])
+        return flipped
+    
     
 # Todo: Should we merge these two classes together??
 class StateTransitions:
