@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Union
-from checkers.board import StateVector
+from checkers.board import StateVector, StateTransitions
 
 
 class BaseQApproximation(ABC):
@@ -61,12 +61,12 @@ class BaseJApproximation(ABC):
         pass
     
     def __call__(
-            self, state_action: Union[List[Tuple[StateVector, StateVector]], Tuple[StateVector, StateVector]]
+            self, state: Union[List[StateVector], StateVector]
     ):
-        if isinstance(state_action, list):
-            return list(map(lambda x: self._evaluate_function(*x), state_action))
+        if isinstance(state, list):
+            return list(map(lambda x: self._evaluate_function(*x), state))
         else:
-            return self._evaluate_function(*state_action)
+            return self._evaluate_function(state)
     
     @abstractmethod
     def train_step(
@@ -106,17 +106,26 @@ class BaseJApproximation(ABC):
             The approximation of the Q factors.
         """
         ...
-
-
-class MaterialBalanceApprox(BaseQApproximation):
-    def train_step(self, state: StateVector, action: StateVector, target: float) -> None:
-        pass
-
-    def train_batch(self, state_action: List[Tuple[StateVector, StateVector]], target: List[float]) -> None:
-        pass
-
-    def _evaluate_function(self, state: StateVector, action: StateVector) -> float:
-        my_pieces = len(state.get_pieces_in_turn())
-        opponents_pieces = len(action.get_pieces_in_turn())
+    
+    def q_factor(self, state: StateVector, action: StateVector):
+        if action.is_final():
+            return self(action)
+        else:
+            return min(self(s) for s in StateTransitions.feasible_next_moves(action))
         
+
+class MaterialBalanceApprox(BaseJApproximation):
+    
+    def train_step(self, state: StateVector, target: float) -> None:
+        pass
+
+    def train_batch(self, states: List[StateVector], target: List[float]) -> None:
+        pass
+
+    def _evaluate_function(self, state: StateVector) -> float:
+        my_pieces = len(state.get_pieces_in_turn())
+        state.toggle_turn()
+        opponents_pieces = len(state.get_pieces_in_turn())
+        state.toggle_turn()
+    
         return 2 * my_pieces / (my_pieces + opponents_pieces) - 1

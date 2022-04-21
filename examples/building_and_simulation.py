@@ -4,7 +4,8 @@ from checkers import (
     CheckersGame,
     UniformPlayer,
     EpsilonGreedyPlayer,
-    MaterialBalanceApprox
+    MaterialBalanceApprox,
+    AlphaBetaPlayer
 )
 import os
 
@@ -19,7 +20,7 @@ def create_game():
     q_approx = MaterialBalanceApprox()
     
     game = CheckersGame(
-        light_player=EpsilonGreedyPlayer(q_approx, epsilon=epsilon),
+        light_player=AlphaBetaPlayer(q_approx, depth=2),
         dark_player=UniformPlayer()
     )
     return game

@@ -165,8 +165,16 @@ class StateVector(np.ndarray):
                 return True if i == self.size_of_the_board - 1 else False
             else:
                 return True if i == 0 else False
-
-
+    
+    def is_final(self):
+        s_list = sorted(list(self[:-1]))
+        if s_list[0] == 0 or s_list[-1] == 0:
+            # In this case all pieces are of the same color
+            return True
+        else:
+            return False
+        
+    
 # Todo: Should we merge these two classes together??
 class StateTransitions:
     def __init__(self):
