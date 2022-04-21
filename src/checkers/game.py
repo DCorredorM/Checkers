@@ -36,7 +36,7 @@ class CheckersGame:
             number_of_moves: Optional[int] = None,
             initial_state: Optional[StateVector] = None
     ) -> Tuple[List[StateVector], int]:
-        pass
+        return self._simulate_game(number_of_moves, initial_state)
     
     def _simulate_game(
             self,

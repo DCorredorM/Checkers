@@ -85,6 +85,7 @@ class BaseJApproximation(ABC):
     @classmethod
     @abstractmethod
     def load(cls):
+        ...
     
     @abstractmethod
     def train_step(
@@ -134,6 +135,13 @@ class BaseJApproximation(ABC):
 
 class MaterialBalanceApprox(BaseJApproximation):
     
+    def save(self):
+        pass
+
+    @classmethod
+    def load(cls):
+        pass
+
     def train_step(self, state: StateVector, target: float) -> None:
         pass
 

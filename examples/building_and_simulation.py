@@ -22,7 +22,7 @@ def create_game():
     
     game = CheckersGame(
         light_player=AlphaBetaPlayer(v_approx, depth=4),
-        dark_player=UniformPlayer()
+        dark_player=AlphaBetaPlayer(v_approx, depth=4)
     )
     return game
 
@@ -65,4 +65,4 @@ if __name__ == '__main__':
     seed = 754
     np.random.seed(seed)
     rnd.seed(seed)
-    create_data()
+    simulate_visual()
