@@ -26,7 +26,7 @@ class CheckersPlayer(ABC):
         self.value_function: Optional[BaseJApproximation] = None
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.color})'
+        return f'{self.__class__.__name__}'
     
     @abstractmethod
     def next_move(self, state: StateVector) -> StateVector:
@@ -99,7 +99,7 @@ class AlphaBetaPlayer(CheckersPlayer):
         self.depth = AlphaBetaPlayer.DEFAULT_DEPTH if depth is None else depth
     
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.color})({self.depth})'
+        return f'{self.__class__.__name__}({self.depth})'
     
     def next_move(self, state: StateVector) -> StateVector:
         val, next_state = self.minimax(state, -np.inf, np.inf, self.depth)

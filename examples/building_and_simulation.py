@@ -8,6 +8,9 @@ from checkers import (
     AlphaBetaPlayer,
     EpsilonAlphaBetaPlayer
 )
+
+from gui import Visualizer
+
 import os
 
 import numpy as np
@@ -20,9 +23,13 @@ def create_game():
     epsilon = 0.1
     v_approx = MaterialBalanceApprox()
     
+    # game = CheckersGame(
+    #     light_player=AlphaBetaPlayer(v_approx, depth=4),
+    #     dark_player=AlphaBetaPlayer(v_approx, depth=4)
+    # )
     game = CheckersGame(
         light_player=AlphaBetaPlayer(v_approx, depth=4),
-        dark_player=AlphaBetaPlayer(v_approx, depth=4)
+        dark_player=UniformPlayer()
     )
     return game
 
@@ -31,17 +38,10 @@ def simulate_visual(portion=None):
     game = create_game()
 
     history, winner = game.simulate_game()
-    path = os.path.join('data', 'games', f'{time.time()}')
-    os.makedirs(path, exist_ok=True)
     print(f'the winner is {winner}')
-    if portion is None:
-        i = 0
-        for s in history:
-            s.visualize(save_path=os.path.join(path, f'frame{i}.png'), show=False)
-            i += 1
-    else:
-        for s in history[-portion:]:
-            s.visualize()
+    path = os.path.join('data', 'games', f'{game}-{time.strftime("%b %d %Y %H:%M:%S")}')
+    
+    Visualizer.visualize_game(history, path)
 
 
 def simulate():

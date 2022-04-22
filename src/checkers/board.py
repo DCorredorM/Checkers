@@ -69,6 +69,7 @@ class StateVector(np.ndarray):
             plt.show()
         if save_path is not None:
             plt.clf()
+            plt.close('all')
 
     def get_pieces_in_turn(self) -> List[int]:
         """

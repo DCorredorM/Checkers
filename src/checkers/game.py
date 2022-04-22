@@ -31,6 +31,9 @@ class CheckersGame:
         self.light_player = light_player
         self.dark_player = dark_player
     
+    def __repr__(self):
+        return f'{self.light_player}vs{self.dark_player}'
+    
     def simulate_game(
             self,
             number_of_moves: Optional[int] = None,
@@ -169,7 +172,7 @@ class CheckersGame:
         if output_path is None:
             output_path = CheckersGame.DEFAULT_OUTPUT_PATH
         
-        output_path = os.path.join(output_path, 'training_data', f'{self.dark_player}vs{self.light_player}')
+        output_path = os.path.join(output_path, 'training_data', str(self))
         os.makedirs(output_path, exist_ok=True)
         
         states = []
