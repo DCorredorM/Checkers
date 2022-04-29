@@ -144,3 +144,4 @@ cython_debug/
 
 
 data/games/
+data/training_data

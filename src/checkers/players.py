@@ -17,24 +17,27 @@ class CheckersPlayer(ABC):
     """
     COLOR = PieceHelper.light
     
-    def __init__(self, color=None):
+    def __init__(self, value_function_approximation: BaseJApproximation = None, color=None):
         if color is None:
             self.color = AlphaBetaPlayer.COLOR
             AlphaBetaPlayer.COLOR ^= PieceHelper.toggle_turn
         else:
             self.color = color
-        self.value_function: Optional[BaseJApproximation] = None
+        self.value_function: Optional[BaseJApproximation] = MaterialBalanceApprox \
+            if value_function_approximation is None else value_function_approximation
 
     def __repr__(self):
         return f'{self.__class__.__name__}'
     
     @abstractmethod
-    def next_move(self, state: StateVector) -> StateVector:
+    def next_move(self, state: StateVector, value_func_approx=None) -> StateVector:
         """
         Abstract method that will define each player's strategy.
 
         Parameters
         ----------
+        value_func_approx: list
+            List that records the new estimate of the value function at the given state.
         state: StateVector
             The state in which the player needs to take the move.
 
@@ -48,7 +51,7 @@ class CheckersPlayer(ABC):
 
 class UniformPlayer(CheckersPlayer):
     """Represents a player whose strategy is to choose randomly among the feasible moves."""
-    def next_move(self, state: StateVector) -> StateVector:
+    def next_move(self, state: StateVector, value_func_approx=None) -> StateVector:
         """
         Chooses a random uniform move given the state.
 
@@ -62,9 +65,14 @@ class UniformPlayer(CheckersPlayer):
         StateVector:
             The state in which the game will be after the move of the player.
         """
+        if value_func_approx is None:
+            value_func_approx = []
+            
         next_moves = StateTransitions.feasible_next_moves(state)
         if next_moves:
-            return rnd.choice(next_moves)
+            next_move = rnd.choice(next_moves)
+            value_func_approx.append(self.value_function.q_factor(state, next_move))
+            return next_move
 
 
 class EpsilonGreedyPlayer(CheckersPlayer):
@@ -75,14 +83,19 @@ class EpsilonGreedyPlayer(CheckersPlayer):
         self.epsilon = EpsilonGreedyPlayer.DEFAULT_EPSILON if epsilon is None else epsilon
         self.value_function = value_function_approximation
     
-    def next_move(self, state: StateVector) -> StateVector:
+    def next_move(self, state: StateVector, value_func_approx=None) -> StateVector:
+        if value_func_approx is None:
+            value_func_approx = []
+        
         if not state.is_final():
             next_moves = {hash(s): s for s in StateTransitions.feasible_next_moves(state)}
             if np.random.rand() < 1-self.epsilon:
                 q_factors = {k: self.value_function.q_factor(state, action) for k, action in next_moves.items()}
                 return next_moves[max(q_factors.keys(), key=lambda x: q_factors[x])]
             else:
-                return rnd.choice(list(next_moves.values()))
+                next_move = rnd.choice(list(next_moves.values()))
+                value_func_approx.append(self.value_function.q_factor(state, next_move))
+                return next_move
         else:
             return state
 
@@ -101,8 +114,11 @@ class AlphaBetaPlayer(CheckersPlayer):
     def __repr__(self):
         return f'{self.__class__.__name__}({self.depth})'
     
-    def next_move(self, state: StateVector) -> StateVector:
+    def next_move(self, state: StateVector, value_func_approx=None) -> StateVector:
+        if value_func_approx is None:
+            value_func_approx = []
         val, next_state = self.minimax(state, -np.inf, np.inf, self.depth)
+        value_func_approx.append(val)
         return next_state
     
     def minimax(self, state: StateVector, alpha: float, beta: float, depth: int):
@@ -145,12 +161,16 @@ class EpsilonAlphaBetaPlayer(AlphaBetaPlayer):
         super().__init__(value_function_approximation, color, depth)
         self.epsilon = EpsilonGreedyPlayer.DEFAULT_EPSILON if epsilon is None else epsilon
 
-    def next_move(self, state: StateVector) -> StateVector:
+    def next_move(self, state: StateVector, value_func_approx=None) -> StateVector:
+        if value_func_approx is None:
+            value_func_approx = []
         if not state.is_final():
             if np.random.rand() < 1 - self.epsilon:
-                return super().next_move(state)
+                return super().next_move(state, value_func_approx)
             else:
                 next_moves = {hash(s): s for s in StateTransitions.feasible_next_moves(state)}
-                return rnd.choice(list(next_moves.values()))
+                next_move = rnd.choice(list(next_moves.values()))
+                value_func_approx.append(self.value_function.q_factor(state, next_move))
+                return next_move
         else:
             return state

@@ -2,6 +2,7 @@ import os
 from copy import copy
 
 import numpy as np
+import torch
 
 from checkers.function_approximation import BaseJApproximation
 from checkers.board import StateVector
@@ -11,8 +12,10 @@ from checkers.piece import PieceHelper
 
 from typing import Optional, List, Union, Tuple
 
+from torch.utils.tensorboard import SummaryWriter
 
-class CheckersGame:
+
+class CheckersGym:
     """
     Represents a checkers game.
 
@@ -27,7 +30,7 @@ class CheckersGame:
     DEFAULT_OUTPUT_PATH = os.path.join('data')
     MAX_NUMBER_OF_MOVES = 100
     
-    def __init__(self, light_player: CheckersPlayer, dark_player: CheckersPlayer):
+    def __init__(self, light_player: CheckersPlayer, dark_player: CheckersPlayer) -> object:
         self.light_player = light_player
         self.dark_player = dark_player
     
@@ -67,7 +70,7 @@ class CheckersGame:
             # Todo: Check convention!!
         """
         if number_of_moves is None:
-            number_of_moves = CheckersGame.MAX_NUMBER_OF_MOVES
+            number_of_moves = CheckersGym.MAX_NUMBER_OF_MOVES
         
         if initial_state is None:
             initial_state = StateVector()
@@ -80,19 +83,15 @@ class CheckersGame:
                 raise AttributeError('If the value function wants to be recorded, the value function history list'
                                      ' needs to be passed by reference.')
             
-            def record_history(state):
-                history.append(state)
-                value_function_history.append(value_function(state))
-        else:
-            def record_history(state):
-                history.append(state)
+        def record_history(state):
+            history.append(state)
         
         current_state = initial_state
         turn = 0
         while True:
             record_history(current_state)
             player = self.dark_player if current_state.turn == PieceHelper.dark else self.light_player
-            next_state = player.next_move(current_state)
+            next_state = player.next_move(current_state, value_func_approx=value_function_history)
             
             # if the game is over (i.e., current player has no moves)
             # or the turn exceeds the maximum number of turns allowed the iteration is stopped.
@@ -104,7 +103,7 @@ class CheckersGame:
                 current_state = copy(next_state)
             turn += 1
         
-        winner = CheckersGame.decide_winner(current_state)
+        winner = CheckersGym.decide_winner(current_state)
         
         return history, winner
     
@@ -167,16 +166,25 @@ class CheckersGame:
             gamma: float,
             lambda_: float,
             train: bool = False,
-            output_path: str = None
+            output_path: str = None,
+            writer: torch.utils.tensorboard.SummaryWriter = None
     ):
         if output_path is None:
-            output_path = CheckersGame.DEFAULT_OUTPUT_PATH
+            output_path = CheckersGym.DEFAULT_OUTPUT_PATH
         
-        output_path = os.path.join(output_path, 'training_data', str(self))
-        os.makedirs(output_path, exist_ok=True)
+        output_path_training = os.path.join(output_path, 'training_data', str(self))
+        output_path_value_function = os.path.join(output_path, 'models', value_function.name)
+        os.makedirs(output_path_training, exist_ok=True)
         
         states = []
         targets = []
+        
+        def update_writer(h):
+            if writer:
+                writer.add_scalars('Training',
+                                   {'Value od Strategy': value_function(h[0])},
+                                   value_function.epoch)
+                writer.flush()
         
         for i in range(number_of_games):
             value_function_history = []
@@ -188,29 +196,39 @@ class CheckersGame:
             v1 = value_function_history[::2]
             if h1[-1].is_final():
                 v1[-1] = float(winner)
+            if len(h1) > len(v1):
+                v1.append(float(winner))
+
             h2 = list(map(lambda x: x.flip_colors(), history[1::2]))
             v2 = value_function_history[1::2]
             if h2[-1].is_final():
                 v2[-1] = -float(winner)
+            if len(h2) > len(v2):
+                v2.append(-float(winner))
             
             t1 = self._compute_td_lambda_target(v1, gamma, lambda_, winner)
             t2 = self._compute_td_lambda_target(v2, gamma, lambda_, -winner)
             
-            states += h1
-            targets += t1
-            states += h2
-            targets += t2
-        
+            states += h1 + h2
+            targets += t1 + t2
+            
+            if train:
+                value_function.train_batch(h1, t1)
+                update_writer(h1)
+                value_function.train_batch(h2, t2)
+                update_writer(h2)
+                value_function.save(output_path_value_function, name=f'checkpoint_{value_function.epoch}.pt')
+                
         specs = {
             'lambda': lambda_,
             'gamma': gamma,
-             'Value function Approximation': str(value_function),
-             'Number of games': number_of_games,
-             'Light player': self.light_player,
-             'Dark player': self.dark_player
+            'Value function Approximation': str(value_function),
+            'Number of games': number_of_games,
+            'Light player': self.light_player,
+            'Dark player': self.dark_player
         }
         
-        CheckersGame.write_training_data(states, targets, output_path, specs)
+        CheckersGym.write_training_data(states, targets, output_path_training, specs)
         
     @staticmethod
     def write_training_data(states, targets, output_path, specs):

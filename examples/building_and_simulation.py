@@ -1,12 +1,12 @@
 from checkers import (
     StateVector,
     StateTransitions,
-    CheckersGame,
+    CheckersGym,
     UniformPlayer,
     EpsilonGreedyPlayer,
     MaterialBalanceApprox,
     AlphaBetaPlayer,
-    EpsilonAlphaBetaPlayer
+    EpsilonAlphaBetaPlayer, NNetApprox, DNNApprox
 )
 
 from gui import Visualizer
@@ -18,19 +18,18 @@ import matplotlib.pyplot as plt
 import random as rnd
 import time
 
+from utils.data_handler import load_training_data
+
 
 def create_game():
     epsilon = 0.1
     v_approx = MaterialBalanceApprox()
     
-    # game = CheckersGame(
-    #     light_player=AlphaBetaPlayer(v_approx, depth=4),
-    #     dark_player=AlphaBetaPlayer(v_approx, depth=4)
-    # )
-    game = CheckersGame(
+    game = CheckersGym(
         light_player=AlphaBetaPlayer(v_approx, depth=4),
-        dark_player=UniformPlayer()
+        dark_player=AlphaBetaPlayer(v_approx, depth=6)
     )
+    
     return game
 
 
@@ -61,8 +60,37 @@ def create_data():
     )
 
 
+def test_nnet():
+    dataset = 'UniformPlayer(-1)vsAlphaBetaPlayer(1)(4)'
+    states, targets = load_training_data(
+        os.path.join('data', 'training_data', dataset)
+    )
+
+    path = os.path.join('data', 'models', 'power_net')
+    structure = [512] * 3 + [256] * 3
+    
+    # nnet = DNNApprox(structure=structure)
+    nnet = DNNApprox.load(path)
+    y_hat = nnet(states[0])
+    
+    for e in range(1000):
+        loss = nnet.train_batch(states, targets)
+        print(loss)
+    
+    y_hat_2 = nnet(states)
+    
+    nnet.save(path)
+    print('')
+    
+    
+def main():
+    # seed = 754
+    # np.random.seed(seed)
+    # rnd.seed(seed)
+    # simulate_visual()
+    test_nnet()
+
+
 if __name__ == '__main__':
-    seed = 754
-    np.random.seed(seed)
-    rnd.seed(seed)
-    simulate_visual()
+    main()
+
