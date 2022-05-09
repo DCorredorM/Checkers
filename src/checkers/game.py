@@ -178,6 +178,7 @@ class CheckersGym:
         
         states = []
         targets = []
+        winners = []
         
         def update_writer(h):
             if writer:
@@ -191,6 +192,7 @@ class CheckersGym:
             history, winner = self._simulate_game(
                 value_function=value_function, value_function_history=value_function_history
             )
+            winners.append(int(winner))
             
             h1 = history[::2]
             v1 = value_function_history[::2]
@@ -228,10 +230,10 @@ class CheckersGym:
             'Dark player': self.dark_player
         }
         
-        CheckersGym.write_training_data(states, targets, output_path_training, specs)
+        CheckersGym.write_training_data(states, targets, winners, output_path_training, specs)
         
     @staticmethod
-    def write_training_data(states, targets, output_path, specs):
+    def write_training_data(states, targets, winners, output_path, specs):
         with open(os.path.join(output_path, 'specs.txt'), 'w') as f:
             for key, value in specs.items():
                 f.write(f'{key}: {value}\n')
@@ -242,7 +244,10 @@ class CheckersGym:
         
         states_ = np.concatenate([states])
         np.savetxt(os.path.join(output_path, 'features.csv'), states_, delimiter=",")
-    
+        
+        winners_ = np.asarray(winners)
+        np.savetxt(os.path.join(output_path, 'winners.csv'), winners_, delimiter=",")
+        
     @staticmethod
     def _compute_td_lambda_target(value_function_history,
                                   gamma,

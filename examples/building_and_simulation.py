@@ -6,7 +6,9 @@ from checkers import (
     EpsilonGreedyPlayer,
     MaterialBalanceApprox,
     AlphaBetaPlayer,
-    EpsilonAlphaBetaPlayer, NNetApprox, DNNApprox
+    EpsilonAlphaBetaPlayer,
+    NNetApprox,
+    PieceHelper
 )
 
 from gui import Visualizer
@@ -22,12 +24,12 @@ from utils.data_handler import load_training_data
 
 
 def create_game():
-    epsilon = 0.1
+    epsilon = 0.4
     v_approx = MaterialBalanceApprox()
     
     game = CheckersGym(
-        light_player=AlphaBetaPlayer(v_approx, depth=4),
-        dark_player=AlphaBetaPlayer(v_approx, depth=6)
+        light_player=EpsilonGreedyPlayer(v_approx, color=PieceHelper.light, depth=4, epsilon=epsilon),
+        dark_player=AlphaBetaPlayer(v_approx, color=PieceHelper.dark, depth=6, epsilon=epsilon)
     )
     
     return game
@@ -53,42 +55,19 @@ def create_data():
     game = create_game()
     game.td_lambda_training(
         value_function=game.light_player.value_function,
-        number_of_games=10,
+        number_of_games=20,
         gamma=0.9,
         lambda_=0.9,
         train=False,
     )
 
-
-def test_nnet():
-    dataset = 'UniformPlayer(-1)vsAlphaBetaPlayer(1)(4)'
-    states, targets = load_training_data(
-        os.path.join('data', 'training_data', dataset)
-    )
-
-    path = os.path.join('data', 'models', 'power_net')
-    structure = [512] * 3 + [256] * 3
-    
-    # nnet = DNNApprox(structure=structure)
-    nnet = DNNApprox.load(path)
-    y_hat = nnet(states[0])
-    
-    for e in range(1000):
-        loss = nnet.train_batch(states, targets)
-        print(loss)
-    
-    y_hat_2 = nnet(states)
-    
-    nnet.save(path)
-    print('')
-    
     
 def main():
     # seed = 754
     # np.random.seed(seed)
     # rnd.seed(seed)
     # simulate_visual()
-    test_nnet()
+    create_data()
 
 
 if __name__ == '__main__':

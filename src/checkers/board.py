@@ -2,9 +2,7 @@ import numpy as np
 from typing import List, Tuple, Union
 import logging
 from copy import deepcopy, copy
-import matplotlib.pyplot as plt
 
-from gui.mpl_visualizer import Visualizer
 from checkers.piece import PieceHelper
 from utils import flatten_list
 
@@ -62,9 +60,10 @@ class StateVector(np.ndarray):
 
     def visualize(self, show=True, save_path=None) -> None:
         """Visualize the state."""
+        from gui.mpl_visualizer import Visualizer, plt
         Visualizer.visualize_state(self)
         if save_path is not None:
-            plt.savefig(save_path)
+            plt.savefig(save_path, dpi=300)
         if show:
             plt.show()
         if save_path is not None:

@@ -17,13 +17,13 @@ class CheckersPlayer(ABC):
     """
     COLOR = PieceHelper.light
     
-    def __init__(self, value_function_approximation: BaseJApproximation = None, color=None):
+    def __init__(self, value_function_approximation: BaseJApproximation = None, color=None, **kwargs):
         if color is None:
             self.color = AlphaBetaPlayer.COLOR
             AlphaBetaPlayer.COLOR ^= PieceHelper.toggle_turn
         else:
             self.color = color
-        self.value_function: Optional[BaseJApproximation] = MaterialBalanceApprox \
+        self.value_function: Optional[BaseJApproximation] = MaterialBalanceApprox() \
             if value_function_approximation is None else value_function_approximation
 
     def __repr__(self):
@@ -78,7 +78,7 @@ class UniformPlayer(CheckersPlayer):
 class EpsilonGreedyPlayer(CheckersPlayer):
     DEFAULT_EPSILON = 0.1
     
-    def __init__(self, value_function_approximation: BaseJApproximation, epsilon=None, color=None):
+    def __init__(self, value_function_approximation: BaseJApproximation, epsilon=None, color=None, **kwargs):
         super().__init__(color)
         self.epsilon = EpsilonGreedyPlayer.DEFAULT_EPSILON if epsilon is None else epsilon
         self.value_function = value_function_approximation
@@ -91,7 +91,9 @@ class EpsilonGreedyPlayer(CheckersPlayer):
             next_moves = {hash(s): s for s in StateTransitions.feasible_next_moves(state)}
             if np.random.rand() < 1-self.epsilon:
                 q_factors = {k: self.value_function.q_factor(state, action) for k, action in next_moves.items()}
-                return next_moves[max(q_factors.keys(), key=lambda x: q_factors[x])]
+                next_move = next_moves[max(q_factors.keys(), key=lambda x: q_factors[x])]
+                value_func_approx.append(self.value_function.q_factor(state, next_move))
+                return next_move
             else:
                 next_move = rnd.choice(list(next_moves.values()))
                 value_func_approx.append(self.value_function.q_factor(state, next_move))
@@ -106,7 +108,8 @@ class AlphaBetaPlayer(CheckersPlayer):
     def __init__(self,
                  value_function_approximation: BaseJApproximation,
                  color=None,
-                 depth=None):
+                 depth=None,
+                 **kwargs):
         super().__init__(color)
         self.value_function = value_function_approximation
         self.depth = AlphaBetaPlayer.DEFAULT_DEPTH if depth is None else depth
@@ -123,8 +126,11 @@ class AlphaBetaPlayer(CheckersPlayer):
     
     def minimax(self, state: StateVector, alpha: float, beta: float, depth: int):
         if depth == 0 or state.is_final():
-            return self.value_function(state) * self.color, state
-        if state.turn == PieceHelper.light:
+            if state.turn != self.color:
+                return self.value_function(state) * -1, state
+            else:
+                return self.value_function(state), state
+        if state.turn == self.color:
             # maximizing player turn
             max_eval = -np.inf
             next_max_state = state
@@ -157,7 +163,8 @@ class EpsilonAlphaBetaPlayer(AlphaBetaPlayer):
                  value_function_approximation: BaseJApproximation,
                  color=None,
                  depth=None,
-                 epsilon=None):
+                 epsilon=None,
+                 **kwargs):
         super().__init__(value_function_approximation, color, depth)
         self.epsilon = EpsilonGreedyPlayer.DEFAULT_EPSILON if epsilon is None else epsilon
 

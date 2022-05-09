@@ -32,7 +32,7 @@ class Visualizer:
     def board(dimension=8, fig=None, ax=None):
         n = dimension
         if fig is None and ax is None:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(8, 8))
         else:
             pass
             # ax.clear()
@@ -83,11 +83,12 @@ class Visualizer:
         
         framerate = kwargs.get('framerate', 5)
         fps = kwargs.get('fps', 25)
-        vcodec = kwargs.get('vcodec', 'mpeg4')
+        vcodec = kwargs.get('vcodec', 'VP90')
         vb = kwargs.get('vb', '40M')
         
+        # -vcodec {vcodec}
         os.popen(
-            f'ffmpeg -framerate {framerate} -i frame%01d.jpg  -vf fps={fps} -vcodec {vcodec} -y -vb {vb} {video_name}.mp4'
+            f'ffmpeg -framerate {framerate} -i frame%01d.jpg  -vf fps={fps} -y -vb {vb} {video_name}.mp4'
         ).readlines()
         os.rename(f'{video_name}.mp4', f'../{video_name}.mp4')
         os.chdir(cur_path)
